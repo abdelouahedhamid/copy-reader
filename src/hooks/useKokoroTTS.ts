@@ -140,7 +140,7 @@ export function useKokoroTTS(text: string) {
       if (inFlight) return inFlight;
 
       const worker = getWorker();
-      const chunkText = chunksRef.current[index].text;
+      const chunkText = chunksRef.current[index].spokenText;
       const voice = voiceIdRef.current;
 
       const promise = enqueueGeneration(

@@ -1,5 +1,13 @@
 export interface TextChunk {
   text: string;
+  /**
+   * Text actually sent to Kokoro for generation. Same content as `text` but
+   * with runs of whitespace (importantly, blank lines between paragraphs)
+   * collapsed to a single space. Kokoro's phonemizer/duration predictor
+   * treats raw newlines as long pauses, so a chunk spanning a paragraph
+   * break would otherwise produce a multi-second silence mid-clip.
+   */
+  spokenText: string;
   start: number;
   end: number;
 }
@@ -10,6 +18,11 @@ export interface WordRange {
 }
 
 const QUOTE_CHARS = new Set(['"', "“", "”"]);
+
+/** Collapses any run of whitespace (including blank lines) to a single space, trimmed. */
+function normalizeWhitespace(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
 
 /**
  * Splits text into sentence boundaries, then merges consecutive sentences up
@@ -52,7 +65,8 @@ export function splitIntoSentences(text: string, maxChunkLength = 280): TextChun
   let start = 0;
   for (const end of boundaries) {
     if (end > start && text.slice(start, end).trim().length > 0) {
-      sentences.push({ text: text.slice(start, end), start, end });
+      const chunkText = text.slice(start, end);
+      sentences.push({ text: chunkText, spokenText: normalizeWhitespace(chunkText), start, end });
     }
     start = end;
   }
@@ -62,6 +76,7 @@ export function splitIntoSentences(text: string, maxChunkLength = 280): TextChun
     const last = merged[merged.length - 1];
     if (last && last.end - last.start + (s.end - s.start) <= maxChunkLength) {
       last.text = text.slice(last.start, s.end);
+      last.spokenText = normalizeWhitespace(last.text);
       last.end = s.end;
     } else {
       merged.push({ ...s });
